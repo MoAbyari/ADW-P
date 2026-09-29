@@ -1,6 +1,6 @@
 # Application Validation Test Suite
 
-Execute comprehensive validation tests for both frontend and backend components, returning results in a standardized JSON format for automated processing.
+Execute the project's validation commands, returning results in a standardized JSON format for automated processing.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ TEST_COMMAND_TIMEOUT: 5 minutes
 
 ## Instructions
 
-- Execute each test in the sequence provided below
+- Read the `Validation Commands` section of `.claude/adw_project.md` and execute each test in the sequence listed there
 - Capture the result (passed/failed) and any error messages
 - IMPORTANT: Return ONLY the JSON array with test results
   - IMPORTANT: Do not include any additional text, explanations, or markdown formatting
@@ -29,47 +29,20 @@ TEST_COMMAND_TIMEOUT: 5 minutes
   - Capture stderr output for error field
   - Timeout commands after `TEST_COMMAND_TIMEOUT`
   - IMPORTANT: If a test fails, stop processing tests and return the results thus far
-- Some tests may have dependencies (e.g., server must be stopped for port availability)
-- API health check is required
 - Test execution order is important - dependencies should be validated first
 - All file paths are relative to the project root
 - Always run `pwd` and `cd` before each test to ensure you're operating in the correct directory for the given test
 
 ## Test Execution Sequence
 
-### Backend Tests
+The tests are defined in the `Validation Commands` section of `.claude/adw_project.md`.
+For each entry listed there:
 
-1. **Python Syntax Check**
-   - Preparation Command: None
-   - Command: `cd app/server && uv run python -m py_compile server.py main.py core/*.py`
-   - test_name: "python_syntax_check"
-   - test_purpose: "Validates Python syntax by compiling source files to bytecode, catching syntax errors like missing colons, invalid indentation, or malformed statements"
+- test_name: the entry's name
+- Command: the entry's command, run from the project root
+- test_purpose: the entry's purpose
 
-2. **Backend Code Quality Check**
-   - Preparation Command: None
-   - Command: `cd app/server && uv run ruff check .`
-   - test_name: "backend_linting"
-   - test_purpose: "Validates Python code quality, identifies unused imports, style violations, and potential bugs"
-
-3. **All Backend Tests**
-   - Preparation Command: None
-   - Command: `cd app/server && uv run pytest tests/ -v --tb=short`
-   - test_name: "all_backend_tests"
-   - test_purpose: "Validates all backend functionality including file processing, SQL security, LLM integration, and API endpoints"
-
-### Frontend Tests
-
-4. **TypeScript Type Check**
-   - Preparation Command: None
-   - Command: `cd app/client && bun tsc --noEmit`
-   - test_name: "typescript_check"
-   - test_purpose: "Validates TypeScript type correctness without generating output files, catching type errors, missing imports, and incorrect function signatures"
-
-5. **Frontend Build**
-   - Preparation Command: None
-   - Command: `cd app/client && bun run build`
-   - test_name: "frontend_build"
-   - test_purpose: "Validates the complete frontend build process including bundling, asset optimization, and production compilation"
+If that section lists no commands, return an empty JSON array: `[]`
 
 ## Report
 
@@ -99,17 +72,17 @@ TEST_COMMAND_TIMEOUT: 5 minutes
 ```json
 [
   {
-    "test_name": "frontend_build",
+    "test_name": "unit_tests",
     "passed": false,
-    "execution_command": "cd app/client && bun run build",
-    "test_purpose": "Validates TypeScript compilation, module resolution, and production build process for the frontend application",
-    "error": "TS2345: Argument of type 'string' is not assignable to parameter of type 'number'"
+    "execution_command": "npm test",
+    "test_purpose": "Validates application behaviour by running the unit test suite",
+    "error": "AssertionError: expected 3 to equal 4"
   },
   {
-    "test_name": "all_backend_tests",
+    "test_name": "lint",
     "passed": true,
-    "execution_command": "cd app/server && uv run pytest tests/ -v --tb=short",
-    "test_purpose": "Validates all backend functionality including file processing, SQL security, LLM integration, and API endpoints"
+    "execution_command": "npm run lint",
+    "test_purpose": "Validates code quality and identifies style violations and potential bugs"
   }
 ]
 ```

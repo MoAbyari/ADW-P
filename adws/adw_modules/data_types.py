@@ -11,7 +11,7 @@ IssueClassSlashCommand = Literal["/chore", "/bug", "/feature"]
 # ADW workflow types
 ADWWorkflow = Literal[
     "adw_plan",           # Planning only
-    "adw_build",          # Building only (excluded from webhook)
+    "adw_build",          # Building only
     "adw_test",           # Testing only  
     "adw_plan_build",     # Plan + Build
     "adw_plan_build_test" # Plan + Build + Test
@@ -26,7 +26,6 @@ SlashCommand = Literal[
     "/feature",
     # ADW workflow commands
     "/classify_issue",
-    "/classify_adw",
     "/find_plan_file",
     "/generate_branch_name",
     "/commit",

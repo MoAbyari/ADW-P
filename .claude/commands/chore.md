@@ -19,17 +19,12 @@ issue_json: $3
 - IMPORTANT: Replace every <placeholder> in the `Plan Format` with the requested value. Add as much detail as needed to accomplish the chore.
 - Use your reasoning model: THINK HARD about the plan and the steps to accomplish the chore.
 - Respect requested files in the `Relevant Files` section.
-- Start your research by reading the `README.md` file.
-- `adws/*.py` contain astral uv single file python scripts. So if you want to run them use `uv run <script_name>`.
+- Start your research by reading the `README.md` file, then read `.claude/adw_project.md` to learn the project's relevant files, dependencies and validation commands.
 - When you finish creating the plan for the chore, follow the `Report` section to properly report the results of your work.
 
 ## Relevant Files
 
-Focus on the following files:
-- `README.md` - Contains the project overview and instructions.
-- `app/**` - Contains the codebase client/server.
-- `scripts/**` - Contains the scripts to start and stop the server + client.
-- `adws/**` - Contains the AI Developer Workflow (ADW) scripts.
+Focus on the files listed in the `Relevant Files` section of `.claude/adw_project.md`.
 
 Ignore all other files in the codebase.
 
@@ -55,7 +50,7 @@ IMPORTANT: Execute every step in order, top to bottom.
 Execute every command to validate the chore is complete with zero regressions.
 
 <list commands you'll use to validate with 100% confidence the chore is complete with zero regressions. every command must execute without errors so be specific about what you want to run to validate the chore is complete with zero regressions. Don't validate with curl commands.>
-- `cd app/server && uv run pytest` - Run server tests to validate the chore is complete with zero regressions
+<include every command from the `Validation Commands` section of `.claude/adw_project.md`, with a note on what each one validates>
 
 ## Notes
 <optionally list any additional notes or context that are relevant to the chore that will be helpful to the developer>

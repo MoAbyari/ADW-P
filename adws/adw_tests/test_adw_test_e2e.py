@@ -36,7 +36,7 @@ def test_e2e_workflow(issue_number: str):
     
     # Run the complete E2E test workflow
     # This function internally:
-    # 1. Calls run_e2e_tests to find and execute all .claude/commands/e2e/*.md files
+    # 1. Calls run_e2e_tests to find and execute all specs/e2e/*.md files
     # 2. If tests fail, calls resolve_failed_e2e_tests to attempt fixes
     # 3. Re-runs tests after resolution (up to max_attempts times)
     # 4. Returns final results
@@ -67,7 +67,7 @@ def test_e2e_workflow(issue_number: str):
             if result.error:
                 print(f"   Error: {result.error}")
     else:
-        print("\nNo E2E test files found in .claude/commands/e2e/")
+        print("\nNo E2E test files found in specs/e2e/")
         print("This is expected if running in a test environment without E2E test files.")
     
     # Log summary

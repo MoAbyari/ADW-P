@@ -19,7 +19,6 @@ from adw_modules.data_types import (
 from adw_modules.agent import execute_template
 from adw_modules.github import get_repo_url, extract_repo_path
 from adw_modules.state import ADWState
-from adw_modules.utils import parse_json
 
 
 # Agent name constants
@@ -38,48 +37,6 @@ def format_issue_message(
     if session_id:
         return f"{adw_id}_{agent_name}_{session_id}: {message}"
     return f"{adw_id}_{agent_name}: {message}"
-
-
-def extract_adw_info(text: str, temp_adw_id: str) -> Tuple[Optional[str], Optional[str]]:
-    """Extract ADW workflow and ID from text using classify_adw agent.
-    Returns (workflow_command, adw_id) tuple."""
-    
-    # Use classify_adw to extract structured info
-    request = AgentTemplateRequest(
-        agent_name="adw_classifier",
-        slash_command="/classify_adw",
-        args=[text],
-        adw_id=temp_adw_id,
-        model="sonnet",
-    )
-    
-    try:
-        response = execute_template(request)
-        
-        if not response.success:
-            print(f"Failed to classify ADW: {response.output}")
-            return None, None
-        
-        # Parse JSON response using utility that handles markdown
-        try:
-            data = parse_json(response.output, dict)
-            adw_command = data.get("adw_slash_command", "").replace("/", "")  # Remove slash
-            adw_id = data.get("adw_id")
-            
-            # Validate command
-            valid_workflows = ["adw_plan", "adw_build", "adw_test", "adw_plan_build", "adw_plan_build_test"]
-            if adw_command and adw_command in valid_workflows:
-                return adw_command, adw_id
-            
-            return None, None
-            
-        except ValueError as e:
-            print(f"Failed to parse classify_adw response: {e}")
-            return None, None
-            
-    except Exception as e:
-        print(f"Error calling classify_adw: {e}")
-        return None, None
 
 
 def classify_issue(

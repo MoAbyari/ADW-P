@@ -2,27 +2,16 @@
 
 ## Read
 .env.sample (never read .env)
-./app/server/.env.sample (never read .env)
+.claude/adw_project.md
 
 ## Read and Execute
 .claude/commands/prime.md
 
 ## Run
-- Remove the existing git remote: `git remote remove origin`
-- Initialize a new git repository: `git init`
-- Install FE and BE dependencies
-- Run `./scripts/copy_dot_env.sh` to copy the .env file from the tac-2 directory. Note, the tac-2 codebase may not exists, proceed either way.
-- Run `./scripts/reset_db.sh` to setup the database from the backup.db file
-- On a background process, run `./scripts/start.sh` with 'nohup' or a 'subshell' to start the server so you don't get stuck
+- Run `uv run adws/adw_tests/health_check.py` to check the environment variables, the git repository, the GitHub CLI and the Claude Code CLI
 
 ## Report
 - Output the work you've just done in a concise bullet point list.
-- Instruct the user to fill out the root level ./.env based on .env.sample. 
-- If `./app/server/.env` does not exist, instruct the user to fill out `./app/server/.env` based on `./app/server/.env.sample`
-- If `./env` does not exist, instruct the user to fill out `./env` based on `./env.sample`
-- Mention the url of the frontend application we can visit based on `scripts/start.sh`
-- Mention: 'To setup your AFK Agent, be sure to update the remote repo url and push to a new repo so you have access to git issues and git prs:
-  ```
-  git remote add origin <your-new-repo-url>
-  git push -u origin main
-  ```'
+- List every error and warning from the health check, with the fix for each.
+- If `./.env` does not exist, instruct the user to fill out `./.env` based on `./.env.sample`
+- If `.claude/adw_project.md` still describes the ADW repository itself, instruct the user to replace its values with those of their own project

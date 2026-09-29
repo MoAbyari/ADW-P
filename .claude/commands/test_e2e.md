@@ -7,7 +7,7 @@ Execute end-to-end (E2E) tests using Playwright browser automation (MCP Server).
 adw_id: $1 if provided, otherwise generate a random 8 character hex string
 agent_name: $2 if provided, otherwise use 'test_e2e'
 e2e_test_file: $3
-application_url: $4 if provided, otherwise use http://localhost:5173
+application_url: $4 if provided, otherwise use the URL in the `Application` section of `.claude/adw_project.md`
 
 ## Instructions
 
@@ -24,14 +24,44 @@ application_url: $4 if provided, otherwise use http://localhost:5173
 - IMPORTANT: After taking each screenshot, save it to `Screenshot Directory` with descriptive names. Use absolute paths to move the files to the `Screenshot Directory` with the correct name.
 - Capture and report any errors encountered
 - Ultra think about the `Test Steps` and execute them in order
-- If you encounter an error, mark the test as failed immediately and explain exactly what went wrong and on what step it occurred. For example: '(Step 1 ❌) Failed to find element with selector "query-input" on page "http://localhost:5173"'
+- If you encounter an error, mark the test as failed immediately and explain exactly what went wrong and on what step it occurred. For example: '(Step 1 ❌) Failed to find element with selector "submit-button" on page "<application_url>"'
 - Use `pwd` or equivalent to get the absolute path to the codebase for writing and displaying the correct paths to the screenshots
 
 ## Setup
 
-- IMPORTANT: Reset the database by running `scripts/reset_db.sh`
-- IMPORTANT: Make sure the server and client are running on a background process before executing the test steps. Read `scripts/` and `README.md` for more information on how to start, stop and reset the server and client
+- Read the `Application` section of `.claude/adw_project.md` for the commands that start, stop and reset the application
+- IMPORTANT: Reset the application state by running the Reset command, if one is set
+- IMPORTANT: Make sure the application is running on a background process before executing the test steps. Use the Start command to start it
 
+
+## E2E Test File Format
+
+Each file in `specs/e2e/` describes one test. Use this format when creating a new one:
+
+```md
+# E2E Test: <test name>
+
+<one sentence describing what the test validates>
+
+## User Story
+
+As a <type of user>
+I want to <action/goal>
+So that <benefit/value>
+
+## Test Steps
+
+1. Navigate to the `Application URL`
+2. Take a screenshot of the initial state
+3. **Verify** <something observable on the page>
+4. <perform a user action>
+5. **Verify** <the expected result>
+6. Take a screenshot of <the result>
+
+## Success Criteria
+- <criterion that must hold for the test to pass>
+- <number> screenshots are taken
+```
 
 ## Screenshot Directory
 

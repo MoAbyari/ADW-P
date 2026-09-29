@@ -19,24 +19,19 @@ issue_json: $3
 - Use your reasoning model: THINK HARD about the feature requirements, design, and implementation approach.
 - Follow existing patterns and conventions in the codebase. Don't reinvent the wheel.
 - Design for extensibility and maintainability.
-- If you need a new library, use `uv add` and be sure to report it in the `Notes` section of the `Plan Format`.
+- If you need a new library, add it as described in the `Dependencies` section of `.claude/adw_project.md` and be sure to report it in the `Notes` section of the `Plan Format`.
 - Don't use decorators. Keep it simple.
 - IMPORTANT: If the feature includes UI components or user interactions:
-  - Add a task in the `Step by Step Tasks` section to create a separate E2E test file in `.claude/commands/e2e/test_<descriptive_name>.md` based on examples in that directory
+  - Add a task in the `Step by Step Tasks` section to create a separate E2E test file in `specs/e2e/test_<descriptive_name>.md` following the `E2E Test File Format` in `.claude/commands/test_e2e.md`
   - Add E2E test validation to your Validation Commands section
-  - IMPORTANT: When you fill out the `Plan Format: Relevant Files` section, add an instruction to read `.claude/commands/test_e2e.md`, and `.claude/commands/e2e/test_basic_query.md` to understand how to create an E2E test file. List your new E2E test file to the `Plan Format: New Files` section.
+  - IMPORTANT: When you fill out the `Plan Format: Relevant Files` section, add an instruction to read `.claude/commands/test_e2e.md` to understand how to create an E2E test file. List your new E2E test file to the `Plan Format: New Files` section.
   - To be clear, we're not creating a new E2E test file, we're creating a task to create a new E2E test file in the `Plan Format` below
 - Respect requested files in the `Relevant Files` section.
-- Start your research by reading the `README.md` file.
+- Start your research by reading the `README.md` file, then read `.claude/adw_project.md` to learn the project's relevant files, dependencies and validation commands.
 
 ## Relevant Files
 
-Focus on the following files:
-- `README.md` - Contains the project overview and instructions.
-- `app/server/**` - Contains the codebase server.
-- `app/client/**` - Contains the codebase client.
-- `scripts/**` - Contains the scripts to start and stop the server + client.
-- `adws/**` - Contains the AI Developer Workflow (ADW) scripts.
+Focus on the files listed in the `Relevant Files` section of `.claude/adw_project.md`.
 
 Ignore all other files in the codebase.
 
@@ -79,7 +74,7 @@ IMPORTANT: Execute every step in order, top to bottom.
 
 <list step by step tasks as h3 headers plus bullet points. use as many h3 headers as needed to implement the feature. Order matters, start with the foundational shared changes required then move on to the specific implementation. Include creating tests throughout the implementation process.>
 
-<If the feature affects UI, include a task to create a E2E test file (like `.claude/commands/e2e/test_basic_query.md` and `.claude/commands/e2e/test_complex_query.md`) as one of your early tasks. That e2e test should validate the feature works as expected, be specific with the steps to demonstrate the new functionality. We want the minimal set of steps to validate the feature works as expected and screen shots to prove it if possible.>
+<If the feature affects UI, include a task to create a E2E test file (following the `E2E Test File Format` in `.claude/commands/test_e2e.md`) as one of your early tasks. That e2e test should validate the feature works as expected, be specific with the steps to demonstrate the new functionality. We want the minimal set of steps to validate the feature works as expected and screen shots to prove it if possible.>
 
 <Your last step should be running the `Validation Commands` to validate the feature works correctly with zero regressions.>
 
@@ -98,11 +93,9 @@ Execute every command to validate the feature works correctly with zero regressi
 
 <list commands you'll use to validate with 100% confidence the feature is implemented correctly with zero regressions. every command must execute without errors so be specific about what you want to run to validate the feature works as expected. Include commands to test the feature end-to-end.>
 
-<If you created an E2E test, include the following validation step: `Read .claude/commands/test_e2e.md`, then read and execute your new E2E `.claude/commands/e2e/test_<descriptive_name>.md` test file to validate this functionality works.>
+<If you created an E2E test, include the following validation step: `Read .claude/commands/test_e2e.md`, then read and execute your new E2E `specs/e2e/test_<descriptive_name>.md` test file to validate this functionality works.>
 
-- `cd app/server && uv run pytest` - Run server tests to validate the feature works with zero regressions
-- `cd app/client && bun tsc --noEmit` - Run frontend tests to validate the feature works with zero regressions
-- `cd app/client && bun run build` - Run frontend build to validate the feature works with zero regressions
+<include every command from the `Validation Commands` section of `.claude/adw_project.md`, with a note on what each one validates>
 
 ## Notes
 <optionally list any additional notes, future considerations, or context that are relevant to the feature that will be helpful to the developer>

@@ -112,8 +112,6 @@ def get_claude_env() -> Dict[str, str]:
         "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": os.getenv(
             "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR", "true"
         ),
-        # Agent Cloud Sandbox Environment (optional)
-        "E2B_API_KEY": os.getenv("E2B_API_KEY"),
         # Basic environment variables Claude Code might need
         "HOME": os.getenv("HOME"),
         "USER": os.getenv("USER"),

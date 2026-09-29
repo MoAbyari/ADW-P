@@ -22,7 +22,7 @@ def setup_logger(adw_id: str, trigger_type: str = "adw_plan_build") -> logging.L
     
     Args:
         adw_id: The ADW workflow ID
-        trigger_type: Type of trigger (adw_plan_build, trigger_webhook, etc.)
+        trigger_type: Type of trigger (adw_plan_build, trigger_cron, etc.)
     
     Returns:
         Configured logger instance

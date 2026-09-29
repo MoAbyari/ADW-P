@@ -71,8 +71,6 @@ def check_env_vars() -> CheckResult:
 
     optional_vars = {
         "GITHUB_PAT": "(Optional) GitHub Personal Access Token - only needed if you want ADW to use a different GitHub account than 'gh auth login'",
-        "E2B_API_KEY": "(Optional) E2B API Key for sandbox environments",
-        "CLOUDFLARED_TUNNEL_TOKEN": "(Optional) Cloudflare tunnel token for webhook exposure",
     }
 
     missing_required = []
