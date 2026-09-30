@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fractal Mission Squad — explorable spec</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5; --paper-2: #ececec; --ink: #2d3142; --muted: #4f5d75; --soft: #7a8399;
+      --rule: rgba(45,49,66,0.12); --rule-solid: #bfc0c0;
+      --accent: #eb6c36; --accent-tint: rgba(235,108,54,0.08); --link: #2e5aa8;
+      --sans: 'Geist', system-ui, sans-serif; --serif: 'Instrument Serif', serif; --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { background: var(--paper); color: var(--ink); font-family: var(--sans); padding: 2.5rem 1.5rem 4rem; }
+    .frame { max-width: 1280px; margin: 0 auto; }
+    .eyebrow { font: 500 0.66rem var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    h1 { font: 400 clamp(1.5rem, 2.4vw + 0.75rem, 2rem)/1.15 var(--serif); letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .lede { color: var(--muted); font-size: 0.9rem; max-width: 60ch; margin-bottom: 1.5rem; }
+    .lede em { font-family: var(--serif); font-style: italic; font-size: 1.05em; color: var(--ink); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--rule); margin-bottom: 1.25rem; overflow-x: auto; }
+    .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; padding: 0.6rem 0.9rem; cursor: pointer;
+           font: 500 0.72rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+    .tab:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+    .panel[hidden] { display: none; }
+
+    /* Diagram container: scrolls locally, never the page */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg.diagram { display: block; width: 100%; min-width: 1280px; }
+    svg text { font-family: var(--sans); }
+    @media print { .diagram-container { overflow-x: visible; } svg.diagram { min-width: 0; } .tabs, .jump { display: none; } .panel[hidden] { display: block; } }
+
+    /* Shared SVG classes */
+    .node-name { fill: var(--ink); font: 600 12px var(--sans); text-anchor: middle; }
+    .sublabel { fill: var(--muted); font: 400 9px var(--mono); text-anchor: middle; }
+    .arrow-label { fill: var(--soft); font: 400 8px var(--mono); letter-spacing: 0.06em; text-anchor: middle; }
+    .tag { fill: var(--muted); font: 500 7px var(--mono); letter-spacing: 0.08em; text-anchor: middle; }
+    .band-label { fill: var(--muted); font: 500 8px var(--mono); letter-spacing: 0.14em; }
+    .tag-left { fill: var(--muted); font: 500 7px var(--mono); letter-spacing: 0.08em; }
+    .legend-text { fill: var(--muted); font: 400 9px var(--mono); }
+    .callout { fill: var(--ink); font: italic 400 14px var(--serif); }
+    .node { cursor: pointer; }
+    .node.is-selected .hit { stroke: var(--link); stroke-width: 2; }
+    .node:hover .hit { stroke-width: 1.6; }
+
+    /* Loop */
+    .ring { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+    .spoke { fill: none; stroke: var(--soft); stroke-width: 1; stroke-dasharray: 5 4; }
+    .station { fill: var(--paper); stroke: var(--ink); stroke-width: 1; }
+    .station.focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.2; }
+    .focal-name { fill: var(--accent); }
+    .hub { fill: var(--ink); }
+    .hub-name { fill: var(--paper); font: 600 16px var(--sans); text-anchor: middle; }
+    .hub-sub { fill: var(--paper); opacity: 0.72; font: 400 9px var(--mono); text-anchor: middle; }
+    .node.is-selected .hub { stroke: var(--link); stroke-width: 2; }
+
+    /* Lifecycle */
+    .phase { fill: #fff; stroke: var(--ink); stroke-width: 1; }
+    .phase.focal { fill: var(--accent-tint); stroke: var(--accent); }
+    .wait { fill: var(--paper); stroke: var(--muted); stroke-dasharray: 5 4; }
+    .terminal { fill: rgba(45,49,66,0.04); stroke: var(--muted); }
+    .transition { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+    .transition.accent { stroke: var(--accent); stroke-width: 1.4; }
+    .transition.dashed { stroke-dasharray: 5 4; }
+
+    /* Layers */
+    .layer { fill: var(--paper); stroke: var(--rule-solid); stroke-width: 1; }
+    .layer.alt { fill: var(--paper-2); }
+    .layer.focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.2; }
+    .layer-name { fill: var(--ink); font: 600 14px var(--sans); }
+    .layer-note { fill: var(--muted); font: 400 9px var(--mono); text-anchor: end; }
+    .chip { fill: #fff; stroke: var(--ink); stroke-width: 1; }
+    .chip.derived { fill: rgba(45,49,66,0.02); stroke: rgba(45,49,66,0.35); stroke-dasharray: 4 3; }
+    .chip.identity { fill: rgba(45,49,66,0.05); stroke: var(--muted); }
+    .chip-name { fill: var(--ink); font: 600 12px var(--mono); text-anchor: middle; }
+
+    /* Reading panel */
+    .reader { margin-top: 1.5rem; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1rem; }
+    @media (max-width: 860px) { .reader { grid-template-columns: 1fr; } }
+    .card { background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 1.25rem; }
+    .card .eyebrow { margin-bottom: 0.35rem; }
+    .card h3 { font: 600 1rem var(--sans); margin-bottom: 0.5rem; }
+    .card h3 .ref { font: 400 0.7rem var(--mono); color: var(--soft); margin-left: 0.5rem; letter-spacing: 0.06em; }
+    .card p, .card li { font-size: 0.86rem; line-height: 1.5; color: var(--ink); }
+    .card ul { padding-left: 1.1rem; margin: 0.35rem 0 0.6rem; }
+    .status { display: inline-block; font: 500 0.62rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; padding: 0.15rem 0.45rem; border: 1px solid var(--rule-solid); border-radius: 2px; color: var(--muted); margin-right: 0.35rem; }
+    .status.req { border-color: var(--ink); color: var(--ink); }
+    .status.open { border-color: var(--accent); color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0 0.8rem; }
+    .chipbtn { appearance: none; cursor: pointer; background: var(--paper); border: 1px solid var(--rule-solid); border-radius: 2px; padding: 0.2rem 0.5rem; font: 500 0.68rem var(--mono); letter-spacing: 0.06em; color: var(--ink); }
+    .chipbtn.oq { border-color: var(--accent); color: var(--accent); }
+    .chipbtn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+    .detail { border-top: 1px solid var(--rule); padding-top: 0.6rem; margin-top: 0.4rem; font-size: 0.82rem; color: var(--muted); }
+    .detail strong { color: var(--ink); font-family: var(--mono); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.06em; }
+    .jump { margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .jump .chipbtn { background: #fff; }
+    .colophon { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 0.75rem; font: 400 0.68rem var(--mono); color: var(--soft); letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <main class="frame">
+    <p class="eyebrow">Mission Squad · Fractal Master Spec · DRAFT v0.2 · explorable</p>
+    <h1>How a master mission squad spawns, bounds and learns from child squads</h1>
+    <p class="lede">Three views of the same specification. <em>Click any node</em> to read the section it comes from, the open questions that block it and the failure modes it controls. Nothing here is assumed: every node is labelled Required, Default or Open exactly as in the spec.</p>
+
+    <div class="tabs" role="tablist" aria-label="Explorer views">
+      <button class="tab" role="tab" id="tab-loop" aria-controls="panel-loop" aria-selected="true">1 · Control loop</button>
+      <button class="tab" role="tab" id="tab-lifecycle" aria-controls="panel-lifecycle" aria-selected="false" tabindex="-1">2 · Child lifecycle</button>
+      <button class="tab" role="tab" id="tab-temporal" aria-controls="panel-temporal" aria-selected="false" tabindex="-1">3 · Temporal axes</button>
+    </div>
+
+    <!-- ===================================================== 1 · LOOP ===================================================== -->
+    <section class="panel" id="panel-loop" role="tabpanel" aria-labelledby="tab-loop">
+      <div class="diagram-container">
+      <svg class="diagram" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="loop-title loop-desc">
+        <title id="loop-title">Master–child control loop</title>
+        <desc id="loop-desc">Eight stations flow clockwise from the programme mission brief through the master lanes, a material-gap decision, the child brief, child lanes, the child output gate, the master input gate and the evidence board, each writing durable evidence into the master repository at the centre.</desc>
+        <defs>
+          <marker id="loop-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="loop-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+          <marker id="loop-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+          <marker id="loop-arrow-soft" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7a8399"/></marker>
+        </defs>
+        <rect width="1280" height="720" fill="#f5f5f5"/>
+
+        <!-- Clockwise ring: eight arcs on the same r=272 station circle -->
+        <path class="ring" d="M720.000 92.031 A272 272 0 0 1 793.308 127.321" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M859.964 192.000 A272 272 0 0 1 909.967 318.809" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M910.111 384.000 A272 272 0 0 1 860.667 511.028" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M794.298 576.000 A272 272 0 0 1 721.146 611.614" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M560.000 611.969 A272 272 0 0 1 486.692 576.679" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M420.036 512.000 A272 272 0 0 1 370.033 385.191" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M369.889 320.000 A272 272 0 0 1 419.333 192.972" marker-end="url(#loop-arrow)"/>
+        <path class="ring" d="M485.702 128.000 A272 272 0 0 1 558.854 92.386" marker-end="url(#loop-arrow)"/>
+
+        <!-- Dashed write-backs: station inner edge to 6px before the hub stroke -->
+        <path class="spoke" d="M640.0 112.0 L640.0 294.0" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M800.0 192.0 L696.2 295.8" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M832.0 352.0 L746.0 352.0" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M800.0 512.0 L696.2 408.2" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M640.0 592.0 L640.0 410.0" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M480.0 512.0 L583.8 408.2" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M448.0 352.0 L534.0 352.0" marker-end="url(#loop-arrow-soft)"/>
+        <path class="spoke" d="M480.0 192.0 L583.8 295.8" marker-end="url(#loop-arrow-soft)"/>
+
+        <!-- Curated spoke labels, masked, 8px clear of their spoke -->
+        <rect x="772" y="452" width="36" height="12" rx="2" fill="#f5f5f5"/><text x="790" y="461" class="arrow-label">BRIEF</text>
+        <rect x="548" y="468" width="48" height="12" rx="2" fill="#f5f5f5"/><text x="572" y="477" class="arrow-label">PIN @SHA</text>
+        <rect x="455" y="332" width="72" height="12" rx="2" fill="#f5f5f5"/><text x="491" y="341" class="arrow-label">RETURN SIGNAL</text>
+
+        <!-- Stations (clockwise from top) -->
+        <g class="node" data-key="brief"><rect class="station hit" x="560" y="48" width="160" height="64" rx="6"/><text x="640" y="76" class="node-name">Programme Brief</text><text x="640" y="96" class="sublabel">outcome · scope · measures</text></g>
+        <g class="node" data-key="masterlanes"><rect class="station hit" x="752" y="128" width="160" height="64" rx="6"/><text x="832" y="156" class="node-name">Master Lanes 1→2→3</text><text x="832" y="176" class="sublabel">learn · specify · integrate</text></g>
+        <g class="node" data-key="gap"><rect class="station hit" x="832" y="320" width="160" height="64" rx="6"/><text x="912" y="348" class="node-name">Material gap?</text><text x="912" y="368" class="sublabel">Decision 1 for the child</text></g>
+        <g class="node" data-key="childbrief"><rect class="station hit" x="752" y="512" width="160" height="64" rx="6"/><text x="832" y="540" class="node-name">Child Mission Brief</text><text x="832" y="560" class="sublabel">bounded squad task</text></g>
+        <g class="node" data-key="childlanes"><rect class="station hit" x="560" y="592" width="160" height="64" rx="6"/><text x="640" y="620" class="node-name">Child Lanes 1→2→3</text><text x="640" y="640" class="sublabel">own MOO · own repo</text></g>
+        <g class="node" data-key="outputgate"><rect class="station hit" x="368" y="512" width="160" height="64" rx="6"/><text x="448" y="540" class="node-name">Child Output Gate</text><text x="448" y="560" class="sublabel">critic + human acceptance</text></g>
+        <g class="node" data-key="inputgate"><rect class="station focal hit" x="288" y="320" width="160" height="64" rx="6"/><text x="368" y="348" class="node-name focal-name">Master Input Gate</text><text x="368" y="368" class="sublabel">child output = data</text></g>
+        <g class="node" data-key="board"><rect class="station hit" x="368" y="128" width="160" height="64" rx="6"/><text x="448" y="156" class="node-name">Evidence Board</text><text x="448" y="176" class="sublabel">continue · pivot · stop</text></g>
+
+        <!-- The one shared-state hub -->
+        <g class="node" data-key="hub"><rect class="hub" x="540" y="300" width="200" height="104" rx="8"/><text x="640" y="348" class="hub-name">Master repo</text><text x="640" y="372" class="hub-sub">spec · context · ledger</text></g>
+      </svg>
+      </div>
+    </section>
+
+    <!-- =================================================== 2 · LIFECYCLE =================================================== -->
+    <section class="panel" id="panel-lifecycle" role="tabpanel" aria-labelledby="tab-lifecycle" hidden>
+      <div class="diagram-container">
+      <svg class="diagram" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lifecycle-title lifecycle-desc">
+        <title id="lifecycle-title">Child mission lifecycle</title>
+        <desc id="lifecycle-desc">A lifecycle phase map with Proposed, Started, Lanes 1–2, Lane 3 and Returned on the primary rail, a Stopped interruption state, and Rejected, Transitioned and Closed as terminal outcomes.</desc>
+        <defs>
+          <marker id="lifecycle-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="lifecycle-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+          <marker id="lifecycle-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+        <rect width="1280" height="720" fill="#f5f5f5"/>
+        <rect x="40" y="56" width="1200" height="120" rx="8" fill="rgba(79,93,117,0.035)" stroke="rgba(45,49,66,0.12)"/>
+        <rect x="40" y="500" width="1200" height="120" rx="8" fill="rgba(45,49,66,0.035)" stroke="rgba(45,49,66,0.12)"/>
+        <text x="56" y="76" class="band-label">INTERRUPTION</text>
+        <text x="56" y="252" class="band-label">PRIMARY PHASES</text>
+        <text x="56" y="520" class="band-label">TERMINAL OUTCOMES</text>
+        <text x="56" y="132" class="callout">* Started, Lanes 1–2 or Lane 3 → Stopped when the Evidence Board says Stop,</text>
+        <text x="56" y="152" class="callout">a parent Stop cascades, or the brief's time-box expires without a decision.</text>
+
+        <!-- Ten transitions, drawn before states -->
+        <line class="transition" x1="280" y1="316" x2="328" y2="316" marker-end="url(#lifecycle-arrow)"/>
+        <line class="transition" x1="488" y1="316" x2="536" y2="316" marker-end="url(#lifecycle-arrow)"/>
+        <line class="transition" x1="696" y1="316" x2="744" y2="316" marker-end="url(#lifecycle-arrow)"/>
+        <line class="transition accent" x1="904" y1="316" x2="952" y2="316" marker-end="url(#lifecycle-arrow-accent)"/>
+        <line class="transition" x1="200" y1="352" x2="200" y2="524" marker-end="url(#lifecycle-arrow)"/>
+        <path class="transition" d="M616 352 V412 Q616 420 624 420 H984 Q992 420 992 412 V352" marker-end="url(#lifecycle-arrow)"/>
+        <path class="transition" d="M1032 352 V444 Q1032 452 1024 452 H832 Q824 452 824 460 V524" marker-end="url(#lifecycle-arrow)"/>
+        <line class="transition" x1="1072" y1="352" x2="1072" y2="524" marker-end="url(#lifecycle-arrow)"/>
+        <path class="transition dashed" d="M616 280 V216 Q616 208 624 208 H996 Q1004 208 1004 216 V148" marker-end="url(#lifecycle-arrow)"/>
+        <path class="transition" d="M1112 116 H1128 Q1136 116 1136 124 V552 Q1136 560 1128 560 H1112" marker-end="url(#lifecycle-arrow)"/>
+
+        <!-- Labels: opaque masks, 8px clear of the stroke -->
+        <g class="arrow-label">
+          <rect x="294" y="296" width="20" height="12" rx="2" fill="#f5f5f5"/><text x="304" y="305">D1</text>
+          <rect x="494" y="296" width="36" height="12" rx="2" fill="#f5f5f5"/><text x="512" y="305">LANE 1</text>
+          <rect x="710" y="296" width="20" height="12" rx="2" fill="#f5f5f5"/><text x="720" y="305">D2</text>
+          <rect x="918" y="296" width="20" height="12" rx="2" fill="#f5f5f5"/><text x="928" y="305" fill="#eb6c36">D3</text>
+          <rect x="212" y="430" width="48" height="12" rx="2" fill="#f5f5f5"/><text x="236" y="439">NO SPAWN</text>
+          <rect x="772" y="400" width="56" height="12" rx="2" fill="#f5f5f5"/><text x="800" y="409">SPEC ONLY</text>
+          <rect x="898" y="464" width="60" height="12" rx="2" fill="#f5f5f5"/><text x="928" y="473">TRANSITION</text>
+          <rect x="1084" y="430" width="32" height="12" rx="2" fill="#f5f5f5"/><text x="1100" y="439">CLOSE</text>
+          <rect x="790" y="188" width="40" height="12" rx="2" fill="#f5f5f5"/><text x="810" y="197">STOP *</text>
+          <rect x="1148" y="330" width="48" height="12" rx="2" fill="#f5f5f5"/><text x="1172" y="339">OUTCOMES</text>
+        </g>
+
+        <!-- Primary rail -->
+        <g class="node" data-key="proposed"><rect class="phase hit" x="120" y="280" width="160" height="72" rx="8"/><text x="200" y="311" class="node-name">Proposed</text><text x="200" y="330" class="sublabel">gap on the Master board</text></g>
+        <g class="node" data-key="started"><rect class="phase hit" x="328" y="280" width="160" height="72" rx="8"/><text x="408" y="311" class="node-name">Started</text><text x="408" y="330" class="sublabel">child MOO named</text></g>
+        <g class="node" data-key="lanes12"><rect class="phase hit" x="536" y="280" width="160" height="72" rx="8"/><text x="616" y="311" class="node-name">Lanes 1–2</text><text x="616" y="330" class="sublabel">learn · specify · verify</text></g>
+        <g class="node" data-key="lane3"><rect class="phase hit" x="744" y="280" width="160" height="72" rx="8"/><text x="824" y="311" class="node-name">Lane 3</text><text x="824" y="330" class="sublabel">harden · integrate</text></g>
+        <g class="node" data-key="returned"><rect class="phase focal hit" x="952" y="280" width="160" height="72" rx="8"/><circle cx="976" cy="304" r="7" fill="none" stroke="#eb6c36"/><circle cx="976" cy="304" r="4" fill="#eb6c36"/><text x="1040" y="311" class="node-name">Returned</text><text x="1040" y="330" class="sublabel">return signal accepted</text></g>
+
+        <!-- Interruption -->
+        <g class="node" data-key="stopped"><rect class="wait hit" x="952" y="84" width="160" height="64" rx="8"/><rect x="962" y="94" width="30" height="12" rx="2" fill="none" stroke="rgba(79,93,117,0.45)"/><text x="977" y="103" class="tag">STOP</text><text x="1032" y="124" class="node-name">Stopped</text><text x="1032" y="140" class="sublabel">no work continues</text></g>
+
+        <!-- Terminal outcomes -->
+        <g class="node" data-key="rejected"><rect class="terminal hit" x="120" y="524" width="160" height="72" rx="8"/><rect x="130" y="534" width="54" height="12" rx="2" fill="none" stroke="rgba(79,93,117,0.45)"/><text x="157" y="543" class="tag">TERMINAL</text><text x="200" y="563" class="node-name">Rejected</text><text x="200" y="580" class="sublabel">contributor joins Master</text></g>
+        <g class="node" data-key="transitioned"><rect class="terminal hit" x="744" y="524" width="160" height="72" rx="8"/><rect x="754" y="534" width="54" height="12" rx="2" fill="none" stroke="rgba(79,93,117,0.45)"/><text x="781" y="543" class="tag">TERMINAL</text><text x="824" y="563" class="node-name">Transitioned</text><text x="824" y="580" class="sublabel">enduring platform owner</text></g>
+        <g class="node" data-key="closed"><rect class="terminal hit" x="952" y="524" width="160" height="72" rx="8"/><rect x="962" y="534" width="54" height="12" rx="2" fill="none" stroke="rgba(79,93,117,0.45)"/><text x="989" y="543" class="tag">TERMINAL</text><text x="1032" y="563" class="node-name">Closed</text><text x="1032" y="580" class="sublabel">outcomes · risks · knowledge</text></g>
+      </svg>
+      </div>
+    </section>
+
+    <!-- =================================================== 3 · TEMPORAL =================================================== -->
+    <section class="panel" id="panel-temporal" role="tabpanel" aria-labelledby="tab-temporal" hidden>
+      <div class="diagram-container">
+      <svg class="diagram" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="temporal-title temporal-desc">
+        <title id="temporal-title">Temporal axes for delivery facts on GitHub</title>
+        <desc id="temporal-desc">Four layers stack the temporal axes of the spec: world time declared in content, witness time asserted by callers, GitHub server-assigned ingestion and transaction times, and belief-layer values projected over the ledger, ordered so each layer is stamped no earlier than the one above.</desc>
+        <defs>
+          <marker id="temporal-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="temporal-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+          <marker id="temporal-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+          <marker id="temporal-arrow-soft" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7a8399"/></marker>
+        </defs>
+        <rect width="1280" height="720" fill="#f5f5f5"/>
+
+        <!-- Direction indicator, left margin -->
+        <line x1="80" y1="120" x2="80" y2="440" stroke="#7a8399" stroke-width="1" marker-end="url(#temporal-arrow-soft)"/>
+        <rect x="52" y="100" width="56" height="12" rx="2" fill="#f5f5f5"/><text x="80" y="109" class="arrow-label">LATER ↓</text>
+
+        <!-- Layers (drawn before chips and arrows so the stack is a zone) -->
+        <g class="node" data-key="L-world"><rect class="layer hit" x="120" y="96" width="1080" height="96"/><text x="136" y="126" class="tag-left">WORLD</text><text x="136" y="152" class="layer-name">Declared in content</text><text x="1184" y="150" class="layer-note">non-monotonic · backdating allowed</text></g>
+        <g class="node" data-key="L-witness"><rect class="layer alt hit" x="120" y="192" width="1080" height="96"/><text x="136" y="222" class="tag-left">WITNESS</text><text x="136" y="248" class="layer-name">Caller-asserted, recorded as data</text><text x="1184" y="246" class="layer-note">SME validation date · source date</text></g>
+        <g class="node" data-key="L-github"><rect class="layer focal hit" x="120" y="288" width="1080" height="96"/><text x="136" y="318" class="tag-left">GITHUB</text><text x="136" y="344" class="layer-name">Server-assigned, ledgered</text><text x="1184" y="342" class="layer-note">merged_at · submitted_at</text></g>
+        <g class="node" data-key="L-belief"><rect class="layer alt hit" x="120" y="384" width="1080" height="96"/><text x="136" y="414" class="tag-left">BELIEF</text><text x="136" y="440" class="layer-name">Projection over the ledger</text><text x="1184" y="438" class="layer-note">acceptance · decision records</text></g>
+
+        <!-- The ≤ chain, drawn before chips -->
+        <line x1="590" y1="264" x2="590" y2="312" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#temporal-arrow)"/>
+        <line x1="660" y1="336" x2="684" y2="336" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#temporal-arrow)"/>
+        <line x1="754" y1="360" x2="754" y2="408" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#temporal-arrow)"/>
+        <line x1="684" y1="432" x2="636" y2="432" stroke="#7a8399" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#temporal-arrow-soft)"/>
+        <rect x="602" y="282" width="16" height="12" rx="2" fill="#f5f5f5"/><text x="610" y="291" class="arrow-label">≤</text>
+        <rect x="766" y="378" width="16" height="12" rx="2" fill="#f5f5f5"/><text x="774" y="387" class="arrow-label">≤</text>
+        <rect x="648" y="446" width="24" height="12" rx="2" fill="#f5f5f5"/><text x="660" y="455" class="arrow-label">MIN</text>
+
+        <!-- Axis chips -->
+        <g class="node" data-key="t_occurred"><rect class="chip hit" x="520" y="120" width="140" height="48" rx="6"/><text x="590" y="141" class="chip-name">t_occurred</text><text x="590" y="158" class="sublabel">valid_from · valid_to</text></g>
+        <g class="node" data-key="t_observed"><rect class="chip hit" x="520" y="216" width="140" height="48" rx="6"/><text x="590" y="237" class="chip-name">t_observed</text><text x="590" y="254" class="sublabel">SME confirmed</text></g>
+        <g class="node" data-key="t_ingested"><rect class="chip hit" x="520" y="312" width="140" height="48" rx="6"/><text x="590" y="333" class="chip-name">t_ingested</text><text x="590" y="350" class="sublabel">push · PR opened</text></g>
+        <g class="node" data-key="t_tx"><rect class="chip hit" x="684" y="312" width="140" height="48" rx="6"/><text x="754" y="333" class="chip-name">t_tx</text><text x="754" y="350" class="sublabel">merged into main</text></g>
+        <g class="node" data-key="sha"><rect class="chip identity hit" x="848" y="312" width="140" height="48" rx="6"/><text x="918" y="333" class="chip-name">commit SHA</text><text x="918" y="350" class="sublabel">identity, not time</text></g>
+        <g class="node" data-key="t_first_learned"><rect class="chip derived hit" x="496" y="408" width="140" height="48" rx="6"/><text x="566" y="429" class="chip-name">t_first_learned</text><text x="566" y="446" class="sublabel">over supersedes chain</text></g>
+        <g class="node" data-key="t_known"><rect class="chip hit" x="684" y="408" width="140" height="48" rx="6"/><text x="754" y="429" class="chip-name">t_known</text><text x="754" y="446" class="sublabel">[accepted, superseded)</text></g>
+        <g class="node" data-key="decision_time"><rect class="chip derived hit" x="848" y="408" width="140" height="48" rx="6"/><text x="918" y="429" class="chip-name">decision_time</text><text x="918" y="446" class="sublabel">≤ t_tx of the record</text></g>
+
+        <!-- Editorial callout -->
+        <text x="120" y="536" class="callout">Commit author and committer dates are caller-set and rewritable — they are never t_tx.</text>
+        <text x="120" y="556" class="callout">A CI pass is a precondition; t_known is an accountable person accepting the work.</text>
+
+        <!-- Legend strip -->
+        <line x1="40" y1="632" x2="1240" y2="632" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text x="40" y="652" class="band-label">LEGEND</text>
+        <rect x="120" y="642" width="20" height="12" rx="2" class="chip"/><text x="148" y="652" class="legend-text">stored axis</text>
+        <rect x="280" y="642" width="20" height="12" rx="2" class="chip derived"/><text x="308" y="652" class="legend-text">derived at projection time</text>
+        <rect x="500" y="642" width="20" height="12" rx="2" class="chip identity"/><text x="528" y="652" class="legend-text">identity, not an axis</text>
+        <rect x="700" y="642" width="20" height="12" rx="2" class="layer focal"/><text x="728" y="652" class="legend-text">the correction: only server time is t_tx</text>
+        <line x1="960" y1="648" x2="1000" y2="648" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#temporal-arrow)"/><text x="1012" y="652" class="legend-text">≤ ordering constraint</text>
+      </svg>
+      </div>
+    </section>
+
+    <!-- ===================================================== READER ===================================================== -->
+    <div class="reader">
+      <article class="card" id="reader-main" aria-live="polite">
+        <p class="eyebrow">Select a node</p>
+        <h3>Start with the focal node of each view</h3>
+        <p>The tangerine node is the editorial point of each view: the <strong>Master Input Gate</strong> (where child output is admitted as data, never as instruction), the <strong>Returned</strong> state (the only path to closure that carries acceptance evidence), and the <strong>GitHub server-assigned layer</strong> (the correction that makes AS-OF queries answerable).</p>
+        <div class="jump" id="jump"></div>
+      </article>
+      <aside class="card" id="reader-side">
+        <p class="eyebrow">Open questions · failure modes</p>
+        <h3>Nothing here is assumed</h3>
+        <p>Every node lists the open questions (OQ) that block it becoming <span class="status req">Required</span> and the failure modes (FM) it controls. Click a chip to read it.</p>
+        <div id="side-body"></div>
+      </aside>
+    </div>
+
+    <p class="colophon">Source: claude/fractal-mission-squad-master-spec.md · DRAFT v0.2 · validated against the AI Mission Squad Playbook and TSCS Topics 1, 2, 3, 5 · rendered 2026-10-01</p>
+  </main>
+
+  <script>
+  (function () {
+    var OQ = {
+      "OQ-1": "Is the attached document the complete proposal, or was more text intended after the divider?",
+      "OQ-1b": "Is the “fragmented governance / tech debt” premise backed by IAG evidence (incidents, retros)?",
+      "OQ-2": "Programme Lead vs Master MOO — same person or facilitator without outcome ownership? Is a child MOO the platform product owner?",
+      "OQ-3": "Can child capabilities release independently of the programme increment? Decides who takes Decision 3 for children.",
+      "OQ-4": "Are master and child repos in one GitHub org? Do child repos already exist? Who owns them?",
+      "OQ-5": "Maximum recursion depth? Proposed default 2 (Master → Child → Grandchild).",
+      "OQ-6": "WIP limit on child missions in flight, and how long a gap may stay open before spawning?",
+      "OQ-7": "Ledger store and retention horizon; which GitHub removal operations are disabled vs admitted as the erasure path?",
+      "OQ-8": "Merge method (squash vs merge-commit) and signed-commit policy?",
+      "OQ-9": "Adopt GitHub Agentic Workflows (technical preview) for Builder/Critic, or plain Actions + agent CLI only?",
+      "OQ-10": "Template owner, in-place update tool (Copier/Cruft-style) and upgrade notification process?",
+      "OQ-11": "Which measures roll up to the programme, and what are the baselines?",
+      "OQ-12": "Builder and Critic identities — separate GitHub Apps? Different model for the Critic?",
+      "OQ-13": "Are the proposal's “Master Context Gates” the Playbook Input/Output Gates at programme scope, or a new gate type?",
+      "OQ-14": "Overview says evidence “remains in authoritative working locations and is linked”; Playbook Lane 2 requires it committed in the repo. Which is canonical?"
+    };
+    var FM = {
+      "FM-1": "Authority inversion — master prescribes child prototypes or architecture.",
+      "FM-2": "Accountability diffusion — no one owns the integrated outcome.",
+      "FM-3": "Recursion explosion / spawn-as-offload.",
+      "FM-4": "Sibling contention on a shared interface.",
+      "FM-5": "Stale inheritance — child treats master assumptions as verified.",
+      "FM-6": "Recency laundering — a re-run child finding looks new.",
+      "FM-7": "Last-writer-wins — child signal overwrites the master spec.",
+      "FM-8": "“Green CI” mistaken for acceptance.",
+      "FM-9": "Git timestamp trust — AS-OF queries reconstruct the wrong past.",
+      "FM-10": "Re-scaffolding a live repo severs history and provenance.",
+      "FM-11": "Automation overreach — a workflow with write permission acts as PM.",
+      "FM-12": "Prompt injection via Return Signals or child repo content.",
+      "FM-13": "Cross-org visibility gaps — master board cannot see child work.",
+      "FM-14": "Zombie child mission — WIP consumed, no decision.",
+      "FM-15": "Parent Stop does not cascade.",
+      "FM-16": "Evidence copied into the master drifts from the original.",
+      "FM-17": "Degenerate t_known = t_tx left undeclared (auto-merge)."
+    };
+    var N = {
+      brief: { view: "loop", title: "Programme Mission Brief", ref: "§1 · §7.1", status: "req",
+        body: "<p>The Playbook's nine Mission Brief headings, unchanged. It fixes the six fractal invariants that must be identical at every level: capability as the unit of work, the three lanes with their Playbook names, the three human decisions, GitHub as system of record, gates + Builder/Critic + append-only decisions, and explicit WIP with an Evidence Board.</p><p>Everything else — folder layout, board columns, workflow tooling — is Default and may be adapted to conventions already in use.</p>",
+        oq: ["OQ-1b", "OQ-11"], fm: ["FM-2"] },
+      masterlanes: { view: "loop", title: "Master Lanes 1→2→3", ref: "§1 · §5.1", status: "req",
+        body: "<p>Lane 1 <em>Business Design, AI Discovery &amp; Spec Shaping</em>, Lane 2 <em>Context, Specification &amp; Verification</em>, Lane 3 <em>Hardening, <strong>Integration</strong> &amp; Convergence</em>. The proposal dropped “Integration” — the exact lane in which the master integrates child capabilities into the programme increment.</p><p>At the master, the Agentic Systems Engineer and Integration &amp; Ops Engineer lead Lane 3 integration; the Lead AI / Solutions Engineer owns interface contracts and the dependency map.</p>",
+        oq: ["OQ-2"], fm: ["FM-2", "FM-4"] },
+      gap: { view: "loop", title: "Material gap → Decision 1 for the child", ref: "§6.1 · P2", status: "req",
+        body: "<p>Spawn only when <strong>all five</strong> hold: the gap blocks a readiness question, interface or control; it sits in a platform with separate ownership, repo or release path; closing it needs the child's own Lane 1–2 learning; the master can state boundary, interfaces, acceptance evidence and time-box; master WIP is not exceeded. Otherwise a contributor joins the master squad.</p><p>Spawning <em>is</em> the Playbook's Decision 1 run on the child's behalf — all seven checks apply. Anti-patterns rejected: spawning to move accountability, for capacity, or to redo the master's Lane 1.</p>",
+        oq: ["OQ-5", "OQ-6"], fm: ["FM-3"] },
+      childbrief: { view: "loop", title: "Child Mission Brief", ref: "§7.1 · P3 · P5", status: "req",
+        body: "<p>Playbook Mission Brief plus bounded-task fields: parent linkage, gap statement, scope boundary (may / must not), interface contracts in force (<code>repo@sha</code>), expected return signals, an <strong>inherited-context register</strong> marking every master assumption as documented or testified, inherited agent boundaries (child may tighten, not loosen), time-box and review point, escalation trigger, accountable people.</p><p>A brief bounds outcome and interfaces — never method. The master does not prescribe the child's prototypes, architecture or lane pacing.</p>",
+        oq: ["OQ-2", "OQ-3"], fm: ["FM-1", "FM-5"] },
+      childlanes: { view: "loop", title: "Child squad runs all three lanes", ref: "P1 · §5.2", status: "req",
+        body: "<p>A child is a Mission Squad, not a sub-team: its own accountable MOO, its own repo, all three lanes and its own Decision 2 (Ready for Lane 3). The master is consulted on child D2 only when the child's technical direction changes a master interface, control or dependency.</p><p>Who takes the child's Decision 3 depends on whether the platform capability is independently releasable — a per-programme fact, not yet settled.</p>",
+        oq: ["OQ-3"], fm: ["FM-2"] },
+      outputgate: { view: "loop", title: "Child Output Gate", ref: "§7.2 · §8.3", status: "req",
+        body: "<p>Playbook Output Gate + Critic Review (a separate agent identity, fresh session, read-only) + the human reviewer's decision. That decision is the child's <code>t_known</code>; a green CI run is only a precondition.</p><p>Every automation carries a permitted level: gate completeness checks act automatically and escalate (5), the Builder acts after approval (3), the Critic recommends (1). Required checks run as standard GitHub Actions; <code>gh aw</code> is Optional because it is a technical preview.</p>",
+        oq: ["OQ-9", "OQ-12"], fm: ["FM-8", "FM-11"] },
+      inputgate: { view: "loop", title: "Master Input Gate — the focal node", ref: "§7.2 · P4 · P6", status: "req",
+        body: "<p>A <strong>Return Signal</strong> is the only way child knowledge enters the master: typed (discovery-finding, expected-behaviour, living-spec-section, eval-suite, interface-contract, decision-record, release-evidence, risk, gap-unresolved), <code>child-repo@sha</code>-linked, carrying the child's acceptance evidence and an epistemic status the master may not raise on ingestion.</p><p>Child output is admitted as <em>data</em>, never as instruction to master agents. A broken <code>supersedes</code> chain is rejected. On Accept, the Mission Context Owner updates the Living Capability Spec, <code>context/provenance.md</code> and the Sources table's <em>Last confirmed</em>. On conflict, an ADR arbitrates and both positions stay on record — last-writer-wins is forbidden.</p>",
+        oq: ["OQ-13", "OQ-14"], fm: ["FM-7", "FM-12", "FM-16"] },
+      board: { view: "loop", title: "Programme Evidence Board", ref: "§6.3 · §6.4 · §11", status: "req",
+        body: "<p>The Playbook's Evidence Board at programme scope plus three fractal questions: which child briefs are past their review point, which return signals wait at the Master Input Gate, which interface contracts changed this cycle. It decides Continue, Pivot or Stop; a parent Stop cascades to children unless a child is explicitly transitioned to enduring ownership.</p><p>WIP is nested: the Master MOO limits child missions in flight (no Playbook default exists — open), each MOO limits capabilities in Lane 3 (default ≤3).</p>",
+        oq: ["OQ-6", "OQ-11"], fm: ["FM-14", "FM-15"] },
+      hub: { view: "loop", title: "Master repo — the shared record", ref: "§8.1 · §10.4 · P7", status: "req",
+        body: "<p>Playbook layout (<code>specs/ context/ tasks/ decisions/ evals/ reviews/ releases/</code>) plus <code>context/dependency-map.md</code>, <code>context/interfaces/</code>, <code>missions/&lt;child&gt;/</code> and an append-only <code>ledger/</code>. Child evidence is linked by <code>repo@sha</code>, never copied.</p><p>The ledger is written only by a bot from GitHub event payloads, each record carrying server time, actor, <code>repo@sha</code> and a hash of the previous record. In-repo append-only is a discipline, not a guarantee — an external witness digest is Recommended.</p>",
+        oq: ["OQ-4", "OQ-7", "OQ-8", "OQ-10"], fm: ["FM-9", "FM-10", "FM-13", "FM-16"] },
+
+      proposed: { view: "lifecycle", title: "Proposed", ref: "§6.1 · §6.2", status: "req",
+        body: "<p>A material gap is recorded on the Master board. It either passes the five spawn criteria and Decision 1 (→ Started) or a contributor joins the master squad instead (→ Rejected).</p>", oq: ["OQ-5", "OQ-6"], fm: ["FM-3"] },
+      started: { view: "lifecycle", title: "Started", ref: "§5.2 · §7.1", status: "req",
+        body: "<p>Decision 1 passed by the Master MOO; the child MOO is named and accepts or negotiates the brief before work begins. A child cannot start without a named child MOO and an accountable master sponsor.</p>", oq: ["OQ-2"], fm: ["FM-2", "FM-5"] },
+      lanes12: { view: "lifecycle", title: "Lanes 1–2", ref: "§5.2 · P1", status: "req",
+        body: "<p>The child prototypes to learn, then turns learning into a committed Living Capability Spec and runnable evals. Its own Decision 2 (Ready for Lane 3) moves it on. A brief that only needs learning and a spec returns from here without Lane 3.</p>", oq: ["OQ-3"], fm: ["FM-1"] },
+      lane3: { view: "lifecycle", title: "Lane 3", ref: "§5.2 · §8.3", status: "req",
+        body: "<p>Hardening, Integration &amp; Convergence at platform scope, with Builder/Critic review and human acceptance on material agent changes. Decision 3 sits with the child if the capability is independently releasable, otherwise with the master.</p>", oq: ["OQ-3", "OQ-12"], fm: ["FM-8", "FM-11"] },
+      returned: { view: "lifecycle", title: "Returned — the focal state", ref: "§7.2", status: "req",
+        body: "<p>The child's Return Signal has been accepted at the Master Input Gate. This is the only route to closure that carries acceptance evidence; acceptance at the master is a separate <code>t_known</code> event from acceptance at the child.</p>", oq: ["OQ-13"], fm: ["FM-6", "FM-7"] },
+      stopped: { view: "lifecycle", title: "Stopped", ref: "§5.2 · §6.2", status: "req",
+        body: "<p>Reached from any active state when the Evidence Board says Stop, a parent Stop cascades, or the brief's time-box expires without a decision. Every brief carries a time-box and review point so Started cannot persist silently.</p>", oq: ["OQ-6"], fm: ["FM-14", "FM-15"] },
+      rejected: { view: "lifecycle", title: "Rejected", ref: "§6.1", status: "req",
+        body: "<p>The gap did not meet the spawn criteria; the platform's people join the master squad as contributors, as the Playbook already provides.</p>", oq: [], fm: ["FM-3"] },
+      transitioned: { view: "lifecycle", title: "Transitioned", ref: "§6.2", status: "req",
+        body: "<p>Enduring platform ownership is named: support, monitoring, incident response, recovery, benefits measurement and the route for new learning — the Playbook's closure rule.</p>", oq: ["OQ-3"], fm: ["FM-15"] },
+      closed: { view: "lifecycle", title: "Closed", ref: "§6.2", status: "req",
+        body: "<p>Outcomes, residual risks and reusable knowledge recorded; from Returned or from Stopped. Closure is itself a ledger event.</p>", oq: [], fm: ["FM-14"] },
+
+      "L-world": { view: "temporal", title: "World layer — declared in content", ref: "§10.2 · P9", status: "req",
+        body: "<p>When a business rule is in force, or a capability is live in production. Declared in spec frontmatter and release records; never derived from git history. A versioned substrate captures one transaction-like axis only, so valid time needs application schema.</p>", oq: [], fm: ["FM-9"] },
+      "L-witness": { view: "temporal", title: "Witness layer — caller-asserted", ref: "§10.2 · §10.3", status: "req",
+        body: "<p>When an SME confirmed a behaviour or a source document was dated. Already carried by Playbook artefacts (<em>SME validation — Validated by / Date</em>, the Sources table, <code>provenance.md</code>). Recorded as data, not trusted as ordering.</p>", oq: [], fm: [] },
+      "L-github": { view: "temporal", title: "GitHub layer — server-assigned, ledgered", ref: "§10.1 · §10.4 · §8.4", status: "req",
+        body: "<p>The correction to the proposal. Commit author/committer dates are caller-set, rewritable by amend/rebase/force-push and non-monotonic — they fail TSCS §A's definition of <code>t_tx</code> (store-assigned, strictly monotonic per stream). Only server-assigned event times qualify, captured to an append-only ledger behind branch protection (no force-push, no deletion).</p>", oq: ["OQ-7", "OQ-8"], fm: ["FM-9", "FM-10"] },
+      "L-belief": { view: "temporal", title: "Belief layer — projection over the ledger", ref: "§10.2 · §10.5", status: "req",
+        body: "<p>What the programme <em>accepted</em>, as distinct from what was written. Named AS-OF queries: transaction timeslice (Q1), programme snapshot (Q2), belief slice (Q3), valid slice (Q4), evolution (Q5), decision basis (Q6). Bitemporal = Q3 × Q4, never Q1 alone.</p>", oq: ["OQ-7"], fm: ["FM-8", "FM-17"] },
+      t_occurred: { view: "temporal", title: "t_occurred (valid time)", ref: "§10.2", status: "req",
+        body: "<p>Half-open <code>[valid_from, valid_to)</code>; non-monotonic; backdating allowed. Declared in Expected Behaviour / spec frontmatter and in Release Evidence (<code>[release_effective, decommission)</code>).</p>", oq: [], fm: ["FM-9"] },
+      t_observed: { view: "temporal", title: "t_observed", ref: "§10.2", status: "req",
+        body: "<p>When a witness perceived the fact: the SME session or the source document's date. Caller-asserted, so it is recorded as data and never used to order the ledger.</p>", oq: [], fm: [] },
+      t_ingested: { view: "temporal", title: "t_ingested", ref: "§10.2", status: "req",
+        body: "<p>When evidence crossed into the squad's repo — GitHub push-received or PR-opened server time. Lower bound for <code>t_tx</code> and <code>t_known</code>.</p>", oq: [], fm: [] },
+      t_tx: { view: "temporal", title: "t_tx (transaction time)", ref: "§10.2 · §10.4", status: "req",
+        body: "<p><code>pull_request.merged_at</code>, <code>review.submitted_at</code>, <code>check_run.completed_at</code> — server-assigned only. Never commit author or committer dates. <code>git rev-list --before</code> is not an acceptable AS-OF query.</p>", oq: ["OQ-7", "OQ-8"], fm: ["FM-9"] },
+      sha: { view: "temporal", title: "commit SHA", ref: "§10.2 · §10.5", status: "req",
+        body: "<p>Content identity for deduplication and for pinning child repos in the programme ledger. Not a time axis: a SHA says <em>what</em>, the ledger says <em>when</em>.</p>", oq: ["OQ-8"], fm: ["FM-16"] },
+      t_known: { view: "temporal", title: "t_known (acceptance)", ref: "§10.2", status: "req",
+        body: "<p>When an accountable person accepted the work: Output Gate <em>Accept</em>, the Critic Review's human decision, or PR approval by the accountable reviewer. Interval-valued <code>[t_known_from, t_known_to)</code>, closed by the superseding acceptance. Where a repo auto-merges on green, the <code>t_known = t_tx</code> collapse must be declared per repo — a degenerate case, not a synonym.</p>", oq: ["OQ-12"], fm: ["FM-8", "FM-17"] },
+      t_first_learned: { view: "temporal", title: "t_first_learned", ref: "§10.2", status: "req",
+        body: "<p><code>min(t_known)</code> over a Return Signal's <code>supersedes</code> chain. Stops a re-run child finding from looking new on the Evidence Board.</p>", oq: [], fm: ["FM-6"] },
+      decision_time: { view: "temporal", title: "decision_time", ref: "§10.2 · §10.5", status: "req",
+        body: "<p>When Decision 1, 2, 3 or Continue/Pivot/Stop was taken. A property of the decision record only; <code>decision_time ≤ t_tx</code> of that record. Q6 reconstructs the accepted knowledge a decision rested on.</p>", oq: [], fm: [] }
+    };
+
+    var main = document.getElementById('reader-main'), side = document.getElementById('side-body'), jump = document.getElementById('jump');
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+    var current = 'loop';
+
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function chip(id, cls) { return '<button type="button" class="chipbtn ' + cls + '" data-ref="' + id + '">' + id + '</button>'; }
+
+    function renderJump() {
+      var html = '';
+      Object.keys(N).forEach(function (k) { if (N[k].view === current) html += '<button type="button" class="chipbtn" data-node="' + k + '">' + esc(N[k].title.replace(/ — .*$/, '')) + '</button>'; });
+      jump.innerHTML = html;
+    }
+    function select(key) {
+      var n = N[key]; if (!n) return;
+      document.querySelectorAll('.node.is-selected').forEach(function (g) { g.classList.remove('is-selected'); });
+      document.querySelectorAll('.node[data-key="' + key + '"]').forEach(function (g) { g.classList.add('is-selected'); });
+      var st = n.status === 'req' ? '<span class="status req">Required</span>' : '<span class="status">Default</span>';
+      if (n.oq.length) st += '<span class="status open">' + n.oq.length + ' open</span>';
+      main.innerHTML = '<p class="eyebrow">' + esc(n.view) + ' · node</p><h3>' + esc(n.title) + '<span class="ref">' + esc(n.ref) + '</span></h3><p>' + st + '</p>' + n.body + '<div class="jump" id="jump"></div>';
+      jump = document.getElementById('jump'); renderJump();
+      var s = '';
+      s += '<p class="eyebrow">Open questions blocking this node</p><div class="chips">' + (n.oq.length ? n.oq.map(function (id) { return chip(id, 'oq'); }).join('') : '<span class="status">none</span>') + '</div>';
+      s += '<p class="eyebrow">Failure modes this node controls</p><div class="chips">' + (n.fm.length ? n.fm.map(function (id) { return chip(id, ''); }).join('') : '<span class="status">none</span>') + '</div>';
+      s += '<div class="detail" id="detail">Click a chip to read it.</div>';
+      side.innerHTML = s;
+    }
+    function showRef(id) {
+      var d = document.getElementById('detail'); if (!d) return;
+      var txt = OQ[id] || FM[id]; if (!txt) return;
+      d.innerHTML = '<strong>' + esc(id) + '</strong> — ' + esc(txt) + (OQ[id] ? ' <em>(needs clarification and approval before the node becomes Required)</em>' : '');
+    }
+    function activate(tab) {
+      tabs.forEach(function (t) { var on = t === tab; t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1; document.getElementById(t.getAttribute('aria-controls')).hidden = !on; });
+      current = tab.id.replace('tab-', ''); renderJump();
+    }
+
+    document.addEventListener('click', function (e) {
+      var g = e.target.closest && e.target.closest('.node[data-key]'); if (g) { select(g.getAttribute('data-key')); return; }
+      var b = e.target.closest && e.target.closest('[data-node]'); if (b) { select(b.getAttribute('data-node')); return; }
+      var r = e.target.closest && e.target.closest('[data-ref]'); if (r) { showRef(r.getAttribute('data-ref')); return; }
+      var t = e.target.closest && e.target.closest('.tab'); if (t) { activate(t); }
+    });
+    document.querySelector('.tabs').addEventListener('keydown', function (e) {
+      var i = tabs.indexOf(document.activeElement); if (i < 0) return;
+      if (e.key === 'ArrowRight') { activate(tabs[(i + 1) % tabs.length]); tabs[(i + 1) % tabs.length].focus(); }
+      if (e.key === 'ArrowLeft') { activate(tabs[(i + tabs.length - 1) % tabs.length]); tabs[(i + tabs.length - 1) % tabs.length].focus(); }
+    });
+    renderJump();
+  })();
+  </script>
+</body>
+</html>
